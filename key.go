@@ -36,8 +36,8 @@ import (
 	"math/big"
 )
 
-type JsonWebKey struct {
-	Keys []*JsonWebKey `json:"keys,omitempty"`
+type Key struct {
+	Keys []*Key `json:"keys,omitempty"`
 
 	Kty string `json:"kty"`
 	Use string `json:"use"`
@@ -54,14 +54,14 @@ type JsonWebKey struct {
 }
 
 // Wrapper to unmarshal a JSON octet stream to a structured JWK
-func Unmarshal(jwt []byte) (*JsonWebKey, error) {
-	key := new(JsonWebKey)
+func Unmarshal(jwt []byte) (*Key, error) {
+	key := new(Key)
 	err := json.Unmarshal(jwt, key)
 	return key, err
 }
 
 // Decode as a public key
-func (key *JsonWebKey) DecodePublicKey() (crypto.PublicKey, error) {
+func (key *Key) DecodePublicKey() (crypto.PublicKey, error) {
 	switch key.Kty {
 	case "RSA":
 		if key.N == "" || key.E == "" {
@@ -149,7 +149,7 @@ func (key *JsonWebKey) DecodePublicKey() (crypto.PublicKey, error) {
 }
 
 // Decodes as a private key
-func (key *JsonWebKey) DecodePrivateKey() (crypto.PrivateKey, error) {
+func (key *Key) DecodePrivateKey() (crypto.PrivateKey, error) {
 	switch key.Kty {
 	case "RSA":
 		if key.D == "" {
