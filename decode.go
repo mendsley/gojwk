@@ -37,3 +37,8 @@ func safeDecode(str string) ([]byte, error) {
 
 	return base64.URLEncoding.DecodeString(str)
 }
+
+func safeEncode(p []byte) string {
+	data := base64.URLEncoding.EncodeToString(p)
+	return strings.TrimRight(data, "=")
+}

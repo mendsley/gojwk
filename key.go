@@ -40,7 +40,7 @@ type Key struct {
 	Keys []*Key `json:"keys,omitempty"`
 
 	Kty string `json:"kty"`
-	Use string `json:"use"`
+	Use string `json:"use,omitempty"`
 	Kid string `json:"kid,omitempty"`
 	Alg string `json:"alg,omitempty"`
 
@@ -58,6 +58,87 @@ func Unmarshal(jwt []byte) (*Key, error) {
 	key := new(Key)
 	err := json.Unmarshal(jwt, key)
 	return key, err
+}
+
+// Wrapper to marshal a JSON octet stream from a structured JWK
+func Marshal(key *Key) ([]byte, error) {
+	return json.Marshal(key)
+}
+
+// Create a JWK from a public key
+func PublicKey(key crypto.PublicKey) (*Key, error) {
+	switch key := key.(type) {
+	case *rsa.PublicKey:
+		jwt := &Key{
+			Kty: "RSA",
+			N:   safeEncode(key.N.Bytes()),
+			E:   safeEncode(big.NewInt(int64(key.E)).Bytes()),
+		}
+
+		return jwt, nil
+
+	case *ecdsa.PublicKey:
+		jwt := &Key{
+			Kty: "EC",
+			X:   safeEncode(key.X.Bytes()),
+			Y:   safeEncode(key.Y.Bytes()),
+		}
+
+		switch key.Curve {
+		case elliptic.P224():
+			jwt.Crv = "P-224"
+		case elliptic.P256():
+			jwt.Crv = "P-256"
+		case elliptic.P384():
+			jwt.Crv = "P-384"
+		case elliptic.P521():
+			jwt.Crv = "P-521"
+		default:
+			return nil, fmt.Errorf("Unsupported ECDSA curve")
+		}
+
+		return jwt, nil
+
+	case []byte:
+		jwt := &Key{
+			Kty: "oct",
+			K:   safeEncode(key),
+		}
+
+		return jwt, nil
+
+	default:
+		return nil, fmt.Errorf("Unknown key type %T", key)
+	}
+}
+
+// Create a JWK from a private key
+func PrivateKey(key crypto.PrivateKey) (*Key, error) {
+	switch key := key.(type) {
+	case *rsa.PrivateKey:
+		jwt, err := PublicKey(&key.PublicKey)
+		if err != nil {
+			return nil, err
+		}
+
+		jwt.D = safeEncode(key.D.Bytes())
+		return jwt, err
+
+	case *ecdsa.PrivateKey:
+		jwt, err := PublicKey(&key.PublicKey)
+		if err != nil {
+			return nil, err
+		}
+
+		jwt.D = safeEncode(key.D.Bytes())
+		return jwt, nil
+
+	case []byte:
+		return PublicKey(key)
+
+	default:
+		return nil, fmt.Errorf("Unknown key type %T", key)
+	}
 }
 
 // Decode as a public key
